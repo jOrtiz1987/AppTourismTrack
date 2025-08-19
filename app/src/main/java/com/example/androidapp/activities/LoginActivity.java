@@ -1,5 +1,7 @@
 package com.example.androidapp.activities;
 
+import com.example.androidapp.config.ApiConfig;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
@@ -335,10 +337,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         private Integer mIdUsuario = 0;
         private Boolean existeUsuario = false;
         //Atributos para el uso del web service
-        //private String urlBase = "http://192.168.100.39:8080/api/usuarios/";
-        private String urlBase = "http://10.1.37.53:8080/api/usuarios/";
-        //private String urlBase = "http://192.168.1.2:8080/api/usuarios/";
-        //private String urlBase = "http://200.92.160.5:8080/api/usuarios/";
+        private String urlBase = ApiConfig.BASE_URL + "usuarios/";
+        //private String urlBase = "http://10.1.37.31:8080/api/usuarios/";
         private String fullUrl ="";
         RequestQueue requestQueue;
 

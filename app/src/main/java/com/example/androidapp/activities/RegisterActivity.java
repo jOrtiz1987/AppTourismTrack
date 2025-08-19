@@ -1,5 +1,7 @@
 package com.example.androidapp.activities;
 
+import com.example.androidapp.config.ApiConfig;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -27,7 +29,8 @@ public class RegisterActivity extends AppCompatActivity {
     private EditText etNombre, etCorreo, etPassword, etGenero, etFechaNacimiento, etCodigoPostal;
     private Button btnRegistrar;
     private RequestQueue requestQueue;
-    private String urlBase = "http://10.1.37.40:8080/api/usuarios/";
+    private String urlBase = ApiConfig.BASE_URL + "usuarios/";
+    //private String urlBase = "http://10.1.37.31:8080/api/usuarios/";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

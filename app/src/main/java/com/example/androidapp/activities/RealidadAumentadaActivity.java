@@ -78,8 +78,9 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
                 }
 
                 Anchor anchor = hitResult.createAnchor();
+                //Uri modeloUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.parroquiacentro22);
                 ModelRenderable.builder()
-                        .setSource(this, Uri.parse("parroquiacentro22.glb"))
+                        .setSource(this, R.raw.parroquiacentro22)
                         .setIsFilamentGltf(true)
                         .build()
                         .thenAccept(modelRenderable -> addModelToScene(anchor, modelRenderable))

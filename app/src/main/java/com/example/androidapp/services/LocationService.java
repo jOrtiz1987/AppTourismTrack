@@ -1,5 +1,7 @@
 package com.example.androidapp.services;
 
+import com.example.androidapp.config.ApiConfig;
+
 import android.Manifest;
 import android.app.IntentService;
 import android.app.NotificationChannel;
@@ -77,8 +79,8 @@ public class LocationService extends IntentService {
     }
 
     private void checkNotificationCondition(int userId, double latitude, double longitude) {
-        String url = "http://10.1.37.53:8080/api/coordenadas/validarCoordenadas/" + userId + "/" + latitude + "/" + longitude;
-        //String url = "http://192.168.1.2:8080/api/coordenadas/validarCoordenadas/" + userId + "/" + latitude + "/" + longitude;
+        //String url = "http://10.1.37.31:8080/api/coordenadas/validarCoordenadas/" + userId + "/" + latitude + "/" + longitude;
+        String url = ApiConfig.BASE_URL + "coordenadas/validarCoordenadas/" + userId + "/" + latitude + "/" + longitude;
         RequestQueue queue = Volley.newRequestQueue(this);
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {

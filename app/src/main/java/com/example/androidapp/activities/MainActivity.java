@@ -38,6 +38,7 @@ import com.example.androidapp.models.EdificioHistorico;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+//Esta clase ya no se utiliza
 public class MainActivity extends AppCompatActivity {
 
     private static final int PERMISSION_REQUEST_CODE = 1;
