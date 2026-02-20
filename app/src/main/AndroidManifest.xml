@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
@@ -43,7 +45,8 @@
         <service
             android:name=".services.LocationService"
             android:enabled="true"
-            android:exported="true" />
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <activity
             android:name=".activities.LoginActivity"
@@ -55,6 +58,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".activities.DashboardActivity"
+            android:label="Dashboard"
+            android:theme="@style/Theme.AndroidApp"/>
         <activity
             android:name=".activities.MainActivity"
             android:label="Main activity">

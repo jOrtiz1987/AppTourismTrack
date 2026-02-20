@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.androidapp"
-        minSdk 24
+        minSdk 26
         targetSdk 33
         versionCode 1
         versionName "1.0"
@@ -17,6 +17,15 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true
+        }
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("C:/Users/icjor/Dropbox/Estudios/Doctorado en Ingeniería y Tecnología Aplicada/Aplicaciones/my-release-key.jks")
+            storePassword "admin0213"
+            keyAlias "miappkey"
+            keyPassword "admin0213"
         }
     }
 
@@ -38,7 +47,7 @@ android {
         viewBinding true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.3.2'
+        kotlinCompilerExtensionVersion '1.4.6'
     }
     packagingOptions {
         resources {
@@ -74,12 +83,17 @@ dependencies {
     //implementation 'com.google.ar.sceneform:core:1.17.1'
     implementation "com.gorisse.thomas.sceneform:sceneform:1.23.0"
 
+    //vuforia
+    //implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'com.airbnb.android:lottie:6.0.0'
-    //
+
     androidTestImplementation platform('androidx.compose:compose-bom:2022.10.00')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    
+    // Image Loading
+    implementation 'com.github.bumptech.glide:glide:4.15.1'
 }
 
 configurations {

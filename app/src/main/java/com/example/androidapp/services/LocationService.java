@@ -1,148 +1,220 @@
 package com.example.androidapp.services;
 
-import com.example.androidapp.config.ApiConfig;
-
-import android.Manifest;
-import android.app.IntentService;
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
+import android.content.SharedPreferences;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
-import android.os.Bundle;
+import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
-import java.util.HashMap;
-import java.util.Map;
+
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
-
-import androidx.core.app.ActivityCompat;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
-
-import com.example.androidapp.R;
+import com.example.androidapp.activities.LoginActivity;
 import com.example.androidapp.activities.RealidadAumentadaActivity;
+import com.example.androidapp.config.ApiConfig;
 
 import org.json.JSONException;
 
-public class LocationService extends IntentService {
+import java.util.HashMap;
+import java.util.Map;
+
+public class LocationService extends Service implements LocationListener {
+
+    private static final String TAG = "LocationService";
+    private static final long LOCATION_INTERVAL = 60000; // 1 minuto
+    private static final float LOCATION_DISTANCE = 10f; // 10 metros
+    private static final int NOTIFICATION_ID = 101;
+
     private LocationManager locationManager;
+    private String userId;
+    private String lugarActual;
 
-    private static final int PERMISSION_REQUEST_CODE = 1;
-    private static final String CHANNEL_ID = "my_channel";
-    private static final int NOTIFICATION_ID = 1;
-    private int userId = 1; // Actualizar para usar el id del usuario logeado
+    // Mapa en memoria
+    private final Map<String, Long> sentNotifications = new HashMap<>();
 
-    // Mapa para almacenar notificaciones enviadas
-    private Map<String, Long> sentNotifications = new HashMap<>();
-    public LocationService() {
-        super("LocationService");
+    // Persistencia
+    private static final String PREFS_NOTIF = "NotifPrefs";
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
-        //Toast.makeText(getApplicationContext(), "ManejarIntent ", Toast.LENGTH_SHORT).show();
-        //sendNotification();
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        LocationListener locationListener = new LocationListener() {
-            public void onLocationChanged(Location location) {
-                checkLocationAndNotify(location);
-            }
+    public int onStartCommand(Intent intent, int flags, int startId) {
 
-            public void onStatusChanged(String provider, int status, Bundle extras) { }
-            public void onProviderEnabled(String provider) { }
-            public void onProviderDisabled(String provider) { }
-        };
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
+        startForeground(NOTIFICATION_ID, buildForegroundNotification());
+        return START_STICKY;
+    }
+
+    private Notification buildForegroundNotification() {
+        String channelId = "location_foreground_channel";
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    channelId,
+                    "Servicio de Rastreo Activo",
+                    NotificationManager.IMPORTANCE_LOW);
+            manager.createNotificationChannel(channel);
         }
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 10, locationListener);
-        Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        if (lastKnownLocation != null) {
-            checkLocationAndNotify(lastKnownLocation);
+
+        Intent intent = new Intent(this, com.example.androidapp.activities.DashboardActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+        return new NotificationCompat.Builder(this, channelId)
+                .setContentTitle("Servicio de Ubicación Activo")
+                .setContentText("Monitoreando tu ubicación…")
+                .setSmallIcon(android.R.drawable.ic_menu_compass)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .build();
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        userId = getSharedPreferences("UserPrefs", MODE_PRIVATE)
+                .getString("userId", "0");
+
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+        cargarNotificacionesPrevias();
+        iniciarGPS();
+    }
+
+    private void iniciarGPS() {
+        try {
+            locationManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER,
+                    LOCATION_INTERVAL,
+                    LOCATION_DISTANCE,
+                    this);
+        } catch (SecurityException e) {
+            Log.e(TAG, "Permisos de ubicación no otorgados", e);
         }
     }
 
-    private void checkLocationAndNotify(Location location) {
-        double currentLatitude = location.getLatitude();
-        double currentLongitude = location.getLongitude();
-        checkNotificationCondition(userId, currentLatitude, currentLongitude);
+    @Override
+    public void onLocationChanged(Location location) {
+        double lat = location.getLatitude();
+        double lon = location.getLongitude();
+        sendCoordinatesToServer(lat, lon);
     }
 
-    private void checkNotificationCondition(int userId, double latitude, double longitude) {
-        //String url = "http://10.1.37.31:8080/api/coordenadas/validarCoordenadas/" + userId + "/" + latitude + "/" + longitude;
-        String url = ApiConfig.BASE_URL + "coordenadas/validarCoordenadas/" + userId + "/" + latitude + "/" + longitude;
+    private void sendCoordinatesToServer(double latitude, double longitude) {
+
+        String url = ApiConfig.BASE_URL + "coordenadas/validarCoordenadas/"
+                + userId + "/" + latitude + "/" + longitude;
+
         RequestQueue queue = Volley.newRequestQueue(this);
-        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null,
+
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(
+                Request.Method.GET, url, null,
                 response -> {
                     try {
                         if (response != null && response.length() > 0) {
-                            String nombreLugar = response.getString("descripcion");
-                            // Verificar si ya se envió una notificación en el último minuto
+
+                            // NORMALIZAMOS LA LLAVE
+                            String nombreLugar = response.getString("descripcion")
+                                    .trim().toLowerCase();
+
+                            String idLugar = response.getString("id");
+
                             if (!hasNotificationBeenSentRecently(nombreLugar)) {
-                                sendNotification(nombreLugar);
-                                // Registrar la notificación enviada
-                                sentNotifications.put(nombreLugar, System.currentTimeMillis());
+                                sendNotification(nombreLugar, idLugar);
+                                guardarNotificacion(nombreLugar);
                             }
                         }
-                    } catch (JSONException e) {
-                        Log.e("JSON Error", "Error parsing JSON response", e);
+                    } catch (Exception e) {
+                        Log.e(TAG, "JSON error", e);
                     }
-                }, error -> Log.e("API Error", "Error en la respuesta de la API: " + error.toString())
-        );
+                },
+                error -> Log.e(TAG, "API error: " + error));
 
         queue.add(jsonObjectRequest);
     }
 
-    private boolean hasNotificationBeenSentRecently(String nombreLugar) {
-        if (sentNotifications.containsKey(nombreLugar)) {
-            long lastSentTime = sentNotifications.get(nombreLugar);
-            long currentTime = System.currentTimeMillis();
-            // Verificar si ha pasado menos de un minuto (60,000 milisegundos)
-            if (currentTime - lastSentTime < 60000) {
-                return true; // Ya se envió una notificación en el último minuto
-            }
-        }
-        return false; // No se ha enviado una notificación recientemente
+    private boolean hasNotificationBeenSentRecently(String lugar) {
+        Long lastSent = sentNotifications.get(lugar);
+
+        if (lastSent == null)
+            return false;
+
+        // 1 minuto
+        return System.currentTimeMillis() - lastSent < 60000;
     }
 
-    private void sendNotification(String nombre) {
-        Toast.makeText(this, "Enviar Notificacion", Toast.LENGTH_SHORT).show();
-        createNotificationChannel();
+    private void guardarNotificacion(String lugar) {
+        long now = System.currentTimeMillis();
+        sentNotifications.put(lugar, now);
+
+        SharedPreferences prefs = getSharedPreferences(PREFS_NOTIF, MODE_PRIVATE);
+        prefs.edit().putLong(lugar, now).apply();
+    }
+
+    private void cargarNotificacionesPrevias() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NOTIF, MODE_PRIVATE);
+        Map<String, ?> all = prefs.getAll();
+
+        for (String key : all.keySet()) {
+            long timestamp = prefs.getLong(key, 0);
+            sentNotifications.put(key, timestamp);
+        }
+    }
+
+    private void sendNotification(String lugar, String idLugar) {
+
+        SharedPreferences prefs = getSharedPreferences("VisitPrefs", MODE_PRIVATE);
+        prefs.edit().putString("currentEdificioId", idLugar).apply();
+
+        String channelId = "location_channel";
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(channelId, "Ubicación",
+                    NotificationManager.IMPORTANCE_HIGH);
+            manager.createNotificationChannel(channel);
+        }
 
         Intent intent = new Intent(this, RealidadAumentadaActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(getString(R.string.notification_title))
-                .setContentText(getString(R.string.notification_message) + " " + nombre)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                this, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
+                .setContentTitle("Estás cerca de:")
+                .setContentText(lugar)
+                .setSmallIcon(android.R.drawable.ic_dialog_map)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
-        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
-        notificationManager.notify(NOTIFICATION_ID, builder.build());
+        manager.notify(lugar.hashCode(), builder.build());
     }
 
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = getString(R.string.channel_name);
-            String description = getString(R.string.channel_description);
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-            channel.setDescription(description);
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (locationManager != null) {
+            locationManager.removeUpdates(this);
         }
     }
-
 }

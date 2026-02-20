@@ -24,13 +24,17 @@ import com.example.androidapp.R;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Calendar;
+import android.app.DatePickerDialog;
+import android.widget.DatePicker;
+
 public class RegisterActivity extends AppCompatActivity {
 
     private EditText etNombre, etCorreo, etPassword, etGenero, etFechaNacimiento, etCodigoPostal;
     private Button btnRegistrar;
     private RequestQueue requestQueue;
     private String urlBase = ApiConfig.BASE_URL + "usuarios/";
-    //private String urlBase = "http://10.1.37.31:8080/api/usuarios/";
+    // private String urlBase = "http://10.1.37.31:8080/api/usuarios/";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +49,29 @@ public class RegisterActivity extends AppCompatActivity {
         etFechaNacimiento = findViewById(R.id.etFechaNacimiento);
         etCodigoPostal = findViewById(R.id.etCodigoPostal);
         btnRegistrar = findViewById(R.id.btnRegistrar);
+
+        // Date Picker for Fecha de Nacimiento
+        etFechaNacimiento.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                final Calendar c = Calendar.getInstance();
+                int mYear = c.get(Calendar.YEAR);
+                int mMonth = c.get(Calendar.MONTH);
+                int mDay = c.get(Calendar.DAY_OF_MONTH);
+
+                DatePickerDialog datePickerDialog = new DatePickerDialog(RegisterActivity.this,
+                        new DatePickerDialog.OnDateSetListener() {
+                            @Override
+                            public void onDateSet(DatePicker view, int year,
+                                    int monthOfYear, int dayOfMonth) {
+                                // Format: YYYY-MM-DD
+                                etFechaNacimiento
+                                        .setText(String.format("%d-%02d-%02d", year, monthOfYear + 1, dayOfMonth));
+                            }
+                        }, mYear, mMonth, mDay);
+                datePickerDialog.show();
+            }
+        });
 
         requestQueue = Volley.newRequestQueue(this);
 
@@ -101,17 +128,19 @@ public class RegisterActivity extends AppCompatActivity {
                 new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
-                        Toast.makeText(RegisterActivity.this, "Usuario registrado con éxito", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(RegisterActivity.this, "Usuario registrado con éxito", Toast.LENGTH_SHORT)
+                                .show();
                         Intent newIntent = new Intent(getApplicationContext(), LoginActivity.class);
                         RegisterActivity.this.startActivity(newIntent);
-                        //startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
+                        // startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
                         finish();
                     }
                 },
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Toast.makeText(RegisterActivity.this, "Error al registrar usuario: " + error.toString(), Toast.LENGTH_LONG).show();
+                        Toast.makeText(RegisterActivity.this, "Error al registrar usuario: " + error.toString(),
+                                Toast.LENGTH_LONG).show();
                         Toast.makeText(RegisterActivity.this, "Volley " + error.toString(), Toast.LENGTH_SHORT).show();
                         Log.e("Volley", error.toString());
                     }
@@ -129,7 +158,7 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private boolean isPasswordValid(String password) {
-        //TODO: Replace this with your own logic
+        // TODO: Replace this with your own logic
         return password.length() > 4;
     }
 

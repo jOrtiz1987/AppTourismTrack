@@ -1,6 +1,6 @@
 package com.example.androidapp.config;
 
 public class ApiConfig {
-    // Cambia aquí la URL base de tu API
-    public static final String BASE_URL = "http://liaaproyectos.uaz.edu.mx:8080/api/";
+    public static final String BASE_URL =  "https://liaaproyectos.uaz.edu.mx/appturistica/api/";
+    // public static final String BASE_URL = "http://192.168.1.58:8080/api/";
 }

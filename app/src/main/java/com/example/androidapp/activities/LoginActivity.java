@@ -1,465 +1,231 @@
 package com.example.androidapp.activities;
 
-import com.example.androidapp.config.ApiConfig;
-
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.annotation.TargetApi;
+import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.app.LoaderManager.LoaderCallbacks;
-
-import android.content.CursorLoader;
-import android.content.Loader;
-import android.database.Cursor;
-import android.net.Uri;
-import android.os.AsyncTask;
-
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.ContactsContract;
-import android.text.TextUtils;
-import android.text.InputType;
-import android.view.KeyEvent;
+import android.util.Log;
 import android.view.View;
-import android.view.View.OnClickListener;
-import android.view.inputmethod.EditorInfo;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import com.android.volley.RequestQueue;
-import com.android.volley.VolleyError;
-import com.android.volley.Response;
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import com.android.volley.Request;
-import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.json.JSONException;
-import android.util.Log;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import com.example.androidapp.R;
-import com.example.androidapp.models.Usuario;
+import com.example.androidapp.config.ApiConfig;
 import com.example.androidapp.services.LocationService;
-import com.google.android.material.snackbar.Snackbar;
 
-import static android.Manifest.permission.READ_CONTACTS;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+public class LoginActivity extends Activity {
 
-/**
- * A login screen that offers login via email/password.
- */
-public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<Cursor>  {
+    private EditText mUsername;
+    private EditText mPassword;
+    private Button mLoginButton;
+    private Button btnRegistro;
 
-    /**
-     * Id to identity READ_CONTACTS permission request.
-     */
-    private static final int REQUEST_READ_CONTACTS = 0;
+    // PERMISOS
+    private static final int PERMISSION_LOCATION = 100;
+    private static final int PERMISSION_CAMERA = 101;
+    private static final int PERMISSION_NOTIFICATIONS = 102;
 
-    /**
-     * Keep track of the login task to ensure we can cancel it if requested.
-     */
-    private UserLoginTask mAuthTask = null;
-
-    // UI references.
-    private AutoCompleteTextView mEmailView;
-    private EditText mPasswordView;
-    private View mProgressView;
-    private View mLoginFormView;
+    private int mIdUsuario = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        // Set up the login form.
-        mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
-        mEmailView.setHint("Correo Electrónico");
-        mEmailView.setInputType(InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-        //mEmailView.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_email, 0, 0, 0);
-        mEmailView.setCompoundDrawablePadding(16);
-        populateAutoComplete();
+        mUsername = findViewById(R.id.email);
+        mPassword = findViewById(R.id.password);
+        mLoginButton = findViewById(R.id.email_sign_in_button);
+        btnRegistro = findViewById(R.id.btnRegistro);
 
-        mPasswordView = (EditText) findViewById(R.id.password);
-        mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-            @Override
-            public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
-                if (id == R.id.login || id == EditorInfo.IME_NULL) {
-                    attemptLogin();
-                    return true;
-                }
-                return false;
-            }
-        });
-
-        Button mEmailSignInButton = (Button) findViewById(R.id.email_sign_in_button);
-        mEmailSignInButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                attemptLogin();
-            }
-        });
-
-        mLoginFormView = findViewById(R.id.login_form);
-        mProgressView = findViewById(R.id.login_progress);
-
-        Button btnRegistro = findViewById(R.id.btnRegistro);
-        btnRegistro.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        if (btnRegistro != null) {
+            btnRegistro.setOnClickListener(v -> {
                 Intent newIntent = new Intent(getApplicationContext(), RegisterActivity.class);
-                LoginActivity.this.startActivity(newIntent);
-                //startActivity(new Intent(getApplicationContext(), RegisterActivity.class));
-            }
-        });
+                startActivity(newIntent);
+            });
+        }
 
+        mLoginButton.setOnClickListener(view -> verifyPermissionsBeforeLogin());
+
+        // Auto-login check
+        checkExistingSession();
     }
 
-    private void populateAutoComplete() {
-        if (!mayRequestContacts()) {
+    private void checkExistingSession() {
+        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        String savedUserId = prefs.getString("userId", "-1");
+
+        if (!savedUserId.equals("-1")) {
+            Intent dashboardIntent = new Intent(LoginActivity.this, DashboardActivity.class);
+            startActivity(dashboardIntent);
+            finish();
+        }
+    }
+
+    /**
+     * ================================
+     * 🔐 VALIDACIÓN DE PERMISOS
+     * ================================
+     */
+    private void verifyPermissionsBeforeLogin() {
+
+        // 1. Ubicación
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(this,
+                    new String[] { Manifest.permission.ACCESS_FINE_LOCATION },
+                    PERMISSION_LOCATION);
+
             return;
         }
 
-        getLoaderManager().initLoader(0, null, this);
-    }
+        // 2. Cámara
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
 
-    private boolean mayRequestContacts() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        if (checkSelfPermission(READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-            return true;
-        }
-        if (shouldShowRequestPermissionRationale(READ_CONTACTS)) {
-            Snackbar.make(mEmailView, R.string.permission_rationale, Snackbar.LENGTH_INDEFINITE)
-                    .setAction(android.R.string.ok, new View.OnClickListener() {
-                        @Override
-                        @TargetApi(Build.VERSION_CODES.M)
-                        public void onClick(View v) {
-                            requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
-                        }
-                    });
-        } else {
-            requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
-        }
-        return false;
-    }
+            ActivityCompat.requestPermissions(this,
+                    new String[] { Manifest.permission.CAMERA },
+                    PERMISSION_CAMERA);
 
-    /**
-     * Callback received when a permissions request has been completed.
-     */
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_READ_CONTACTS) {
-            if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                populateAutoComplete();
+            return;
+        }
+
+        // 3. Notificaciones Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+
+                ActivityCompat.requestPermissions(this,
+                        new String[] { Manifest.permission.POST_NOTIFICATIONS },
+                        PERMISSION_NOTIFICATIONS);
+
+                return;
             }
         }
+
+        // Si todo está OK → intentar login
+        attemptLogin();
     }
 
-
     /**
-     * Attempts to sign in or register the account specified by the login form.
-     * If there are form errors (invalid email, missing fields, etc.), the
-     * errors are presented and no actual login attempt is made.
+     * ================================
+     * 🔑 LOGIN
+     * ================================
      */
     private void attemptLogin() {
-        //Toast.makeText(this, "mAuthTask = "+mAuthTask, Toast.LENGTH_SHORT).show();
-        if (mAuthTask != null) {
+
+        String username = mUsername.getText().toString().trim();
+        String password = mPassword.getText().toString();
+
+        if (username.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "Por favor ingresa usuario y contraseña", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Reset errors.
-        mEmailView.setError(null);
-        mPasswordView.setError(null);
-
-        // Store values at the time of the login attempt.
-        String email = mEmailView.getText().toString();
-        String password = mPasswordView.getText().toString();
-
-        boolean cancel = false;
-        View focusView = null;
-
-        // Check for a valid password, if the user entered one.
-        if (!TextUtils.isEmpty(password) && !isPasswordValid(password)) {
-            mPasswordView.setError(getString(R.string.error_invalid_password));
-            focusView = mPasswordView;
-            cancel = true;
-        }
-
-        // Check for a valid email address.
-        if (TextUtils.isEmpty(email)) {
-            mEmailView.setError(getString(R.string.error_field_required));
-            focusView = mEmailView;
-            cancel = true;
-        } else if (!isEmailValid(email)) {
-            mEmailView.setError(getString(R.string.error_invalid_email));
-            focusView = mEmailView;
-            cancel = true;
-        }
-
-        if (cancel) {
-            // There was an error; don't attempt login and focus the first
-            // form field with an error.
-            focusView.requestFocus();
-        } else {
-            // Show a progress spinner, and kick off a background task to
-            // perform the user login attempt.
-            showProgress(true);
-            mAuthTask = new UserLoginTask(email, password);
-            mAuthTask.execute((Void) null);
-        }
+        callLoginApi(username, password);
     }
 
-    private boolean isEmailValid(String email) {
-        if (email == null) {
-            return false;
-        }
-        String emailPattern = "[a-zA-Z0-9._-]+@[a-z]+\\.+[a-z]+";
-        return email.matches(emailPattern);
-    }
+    private void callLoginApi(String username, String password) {
 
-    private boolean isPasswordValid(String password) {
-        //TODO: Replace this with your own logic
-        return password.length() > 4;
-    }
+        String url = ApiConfig.BASE_URL + "usuarios/validarUsuario/" + username + "/" + password;
 
-    /**
-     * Shows the progress UI and hides the login form.
-     */
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
-    private void showProgress(final boolean show) {
-        // On Honeycomb MR2 we have the ViewPropertyAnimator APIs, which allow
-        // for very easy animations. If available, use these APIs to fade-in
-        // the progress spinner.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
-            int shortAnimTime = getResources().getInteger(android.R.integer.config_shortAnimTime);
+        RequestQueue queue = Volley.newRequestQueue(LoginActivity.this);
 
-            mLoginFormView.setVisibility(show ? View.GONE : View.VISIBLE);
-            mLoginFormView.animate().setDuration(shortAnimTime).alpha(
-                    show ? 0 : 1).setListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    mLoginFormView.setVisibility(show ? View.GONE : View.VISIBLE);
-                }
-            });
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(
+                Request.Method.GET,
+                url,
+                null,
+                response -> {
+                    try {
+                        mIdUsuario = response.getInt("idUsuario");
 
-            mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
-            mProgressView.animate().setDuration(shortAnimTime).alpha(
-                    show ? 1 : 0).setListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
-                }
-            });
-        } else {
-            // The ViewPropertyAnimator APIs are not available, so simply show
-            // and hide the relevant UI components.
-            mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
-            mLoginFormView.setVisibility(show ? View.GONE : View.VISIBLE);
-        }
-    }
+                        // Guardamos el usuario
+                        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+                        prefs.edit().putString("userId", String.valueOf(mIdUsuario)).apply();
 
-    @Override
-    public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
-        return new CursorLoader(this,
-                // Retrieve data rows for the device user's 'profile' contact.
-                Uri.withAppendedPath(ContactsContract.Profile.CONTENT_URI,
-                        ContactsContract.Contacts.Data.CONTENT_DIRECTORY), ProfileQuery.PROJECTION,
+                        // Iniciar LocationService
+                        Intent serviceIntent = new Intent(getApplicationContext(), LocationService.class);
+                        serviceIntent.putExtra("idUsuario", String.valueOf(mIdUsuario));
 
-                // Select only email addresses.
-                ContactsContract.Contacts.Data.MIMETYPE +
-                        " = ?", new String[]{ContactsContract.CommonDataKinds.Email
-                .CONTENT_ITEM_TYPE},
-
-                // Show primary email addresses first. Note that there won't be
-                // a primary email address if the user hasn't specified one.
-                ContactsContract.Contacts.Data.IS_PRIMARY + " DESC");
-    }
-
-    @Override
-    public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
-        List<String> emails = new ArrayList<>();
-        cursor.moveToFirst();
-        while (!cursor.isAfterLast()) {
-            emails.add(cursor.getString(ProfileQuery.ADDRESS));
-            cursor.moveToNext();
-        }
-
-        addEmailsToAutoComplete(emails);
-    }
-
-    @Override
-    public void onLoaderReset(Loader<Cursor> cursorLoader) {
-
-    }
-
-    private void addEmailsToAutoComplete(List<String> emailAddressCollection) {
-        //Create adapter to tell the AutoCompleteTextView what to show in its dropdown list.
-        ArrayAdapter<String> adapter =
-                new ArrayAdapter<>(LoginActivity.this,
-                        android.R.layout.simple_dropdown_item_1line, emailAddressCollection);
-
-        mEmailView.setAdapter(adapter);
-    }
-
-
-    private interface ProfileQuery {
-        String[] PROJECTION = {
-                ContactsContract.CommonDataKinds.Email.ADDRESS,
-                ContactsContract.CommonDataKinds.Email.IS_PRIMARY,
-        };
-
-        int ADDRESS = 0;
-        int IS_PRIMARY = 1;
-    }
-
-    /**
-     * Represents an asynchronous login/registration task used to authenticate
-     * the user.
-     */
-    public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
-
-        private final String mEmail;
-        private final String mPassword;
-        private Integer mIdUsuario = 0;
-        private Boolean existeUsuario = false;
-        //Atributos para el uso del web service
-        private String urlBase = ApiConfig.BASE_URL + "usuarios/";
-        //private String urlBase = "http://10.1.37.31:8080/api/usuarios/";
-        private String fullUrl ="";
-        RequestQueue requestQueue;
-
-        UserLoginTask(String email, String password) {
-            mEmail = email;
-            mPassword = password;
-            requestQueue = Volley.newRequestQueue(getApplicationContext());
-        }
-
-        @Override
-        protected Boolean doInBackground(Void... params) {
-            // TODO: attempt authentication against a network service.
-            //Conexion y validacion de usuario en web service
-            this.fullUrl = this.urlBase + "validarUsuario/" + this.mEmail + "/" + this.mPassword ;
-
-            JSONObject jsonBody = new JSONObject();
-            try {
-                // Add data to the JSONObject
-                jsonBody.put("correo", this.mEmail);
-                jsonBody.put("password", this.mPassword);
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-
-            //Intent newIntent = new Intent(getApplicationContext(), LocationService.class);
-            //LoginActivity.this.startService(newIntent);
-
-            //Toast.makeText(LoginActivity.this, "voy a hacer la peticion", Toast.LENGTH_SHORT).show();
-            JsonObjectRequest arrReq = new JsonObjectRequest(Request.Method.GET, this.fullUrl, null,
-                    new Response.Listener<JSONObject>() {
-                        @Override
-                        public void onResponse(JSONObject response) {
-                            Toast.makeText(LoginActivity.this, "response1 " + response.length(), Toast.LENGTH_SHORT).show();
-
-                            if (response.length() > 0) {
-                                for (int i = 0; i < response.length(); i++) {
-                                    try {
-                                        mIdUsuario = Integer.parseInt(response.get("idUsuario").toString());
-                                        //Intent newIntent = new Intent(getApplicationContext(), MainActivity.class);
-                                        Intent newIntent = new Intent(getApplicationContext(), LocationService.class);
-                                        newIntent.putExtra("idUsuario", mIdUsuario.toString());
-                                        //LoginActivity.this.startActivity(newIntent);
-                                        LoginActivity.this.startService(newIntent);
-                                        finish();
-                                    } catch (JSONException e) {
-                                        Log.e("Volley", "Invalid JSON Object.");
-                                    }
-                                }
-                            }
-                            else{
-                                Toast.makeText(LoginActivity.this, "Revise sus credenciales de acceso", Toast.LENGTH_SHORT).show();
-                                /*JsonObjectRequest arrReq = new JsonObjectRequest(Request.Method.POST, urlBase, jsonBody,
-                                        new Response.Listener<JSONObject>() {
-                                            @Override
-                                            public void onResponse(JSONObject response) {
-                                                Toast.makeText(LoginActivity.this, "response2 " + response.length(), Toast.LENGTH_SHORT).show();
-                                                if (response.length() > 0) {
-                                                    for (int i = 0; i < response.length(); i++) {
-                                                        try {
-                                                            mIdUsuario = Integer.parseInt(response.get("idUsuario").toString());
-                                                            //Intent newIntent = new Intent(getApplicationContext(), MainActivity.class);
-                                                            Intent newIntent = new Intent(getApplicationContext(), LocationService.class);
-                                                            newIntent.putExtra("idUsuario", mIdUsuario.toString());
-                                                            //LoginActivity.this.startActivity(newIntent);
-                                                            LoginActivity.this.startService(newIntent);
-                                                        } catch (JSONException e) {
-                                                            Log.e("Volley", "Invalid JSON Object.");
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                        },
-
-                                        new Response.ErrorListener() {
-                                            @Override
-                                            public void onErrorResponse(VolleyError error) {
-                                                Toast.makeText(getApplicationContext(), "Error while calling REST API AgregarUsuario " + error.toString(), Toast.LENGTH_SHORT).show();
-                                                Log.e("Volley", error.toString());
-                                                //progress.dismiss();
-                                            }
-                                        }
-                                );
-                                requestQueue.add(arrReq);*/
-                            }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(serviceIntent);
+                        } else {
+                            startService(serviceIntent);
                         }
-                    },
 
-                    new Response.ErrorListener() {
-                        @Override
-                        public void onErrorResponse(VolleyError error) {
-                            Toast.makeText(getApplicationContext(), "Error while calling REST API ValidarUsuario " + error.toString(), Toast.LENGTH_LONG).show();
-                            Toast.makeText(LoginActivity.this, "Volley " + error.toString(), Toast.LENGTH_SHORT).show();
-                            Log.e("Volley", error.toString());
-                            //progress.dismiss();
-                        }
+                        Toast.makeText(this, "Login correcto. Servicio de ubicación iniciado", Toast.LENGTH_SHORT)
+                                .show();
+
+                        // Iniciar DashboardActivity y cerrar Login
+                        Intent dashboardIntent = new Intent(LoginActivity.this, DashboardActivity.class);
+                        startActivity(dashboardIntent);
+                        finish();
+
+                    } catch (JSONException e) {
+                        Log.e("Volley", "Invalid JSON", e);
+                        Toast.makeText(this, "Error: respuesta inválida del servidor", Toast.LENGTH_SHORT).show();
                     }
-            );
-            requestQueue.add(arrReq);
-            // TODO: register the new account here.
-            return true;
-        }
+                },
+                error -> {
+                    Log.e("Volley Error", "API error: " + error.toString());
+                    Toast.makeText(this, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show();
+                });
 
-        @Override
-        protected void onPostExecute(final Boolean success) {
-            mAuthTask = null;
-            showProgress(false);
+        queue.add(jsonObjectRequest);
+    }
 
-            if (success) {
-                finish();
-            } else {
-                mPasswordView.setError(getString(R.string.error_incorrect_password));
-                mPasswordView.requestFocus();
-            }
-        }
+    /**
+     * ===============================================
+     * 📌 RESPUESTAS DE LOS PERMISOS
+     * ===============================================
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+            @NonNull String[] permissions,
+            @NonNull int[] grantResults) {
 
-        @Override
-        protected void onCancelled() {
-            mAuthTask = null;
-            showProgress(false);
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (grantResults.length == 0)
+            return;
+
+        switch (requestCode) {
+
+            case PERMISSION_LOCATION:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    verifyPermissionsBeforeLogin();
+                } else {
+                    Toast.makeText(this, "La ubicación es necesaria para continuar", Toast.LENGTH_LONG).show();
+                }
+                break;
+
+            case PERMISSION_CAMERA:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    verifyPermissionsBeforeLogin();
+                } else {
+                    Toast.makeText(this, "La cámara es necesaria para realidad aumentada", Toast.LENGTH_LONG).show();
+                }
+                break;
+
+            case PERMISSION_NOTIFICATIONS:
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    verifyPermissionsBeforeLogin();
+                }
+                break;
         }
     }
 }
-
