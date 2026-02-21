@@ -141,21 +141,39 @@ public class LoginActivity extends Activity {
 
     private void callLoginApi(String username, String password) {
 
-        String url = ApiConfig.BASE_URL + "usuarios/validarUsuario/" + username + "/" + password;
+        // Endpoint según el AuthController proporcionado por ti
+        String url = ApiConfig.BASE_URL + "api/auth/login";
 
         RequestQueue queue = Volley.newRequestQueue(LoginActivity.this);
 
+        JSONObject bodyParams = new JSONObject();
+        try {
+            // El backend AuthController espera "correo" en el Request
+            bodyParams.put("correo", username);
+            bodyParams.put("password", password);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(
-                Request.Method.GET,
+                Request.Method.POST,
                 url,
-                null,
+                bodyParams,
                 response -> {
                     try {
-                        mIdUsuario = response.getInt("idUsuario");
+                        // El backend AuthController retorna la llave "jwt"
+                        String jwtToken = response.getString("jwt");
 
-                        // Guardamos el usuario
+                        // IMPORTANTE: Tu backend actual en AuthController NO retorna idUsuario.
+                        // Usará -1 por defecto, lo que podría afectar servicios que lo requieran.
+                        mIdUsuario = response.optInt("idUsuario", -1);
+
+                        // Guardamos el usuario y el nuevo token JWT
                         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-                        prefs.edit().putString("userId", String.valueOf(mIdUsuario)).apply();
+                        prefs.edit()
+                                .putString("userId", String.valueOf(mIdUsuario))
+                                .putString("jwtToken", jwtToken)
+                                .apply();
 
                         // Iniciar LocationService
                         Intent serviceIntent = new Intent(getApplicationContext(), LocationService.class);
@@ -182,7 +200,11 @@ public class LoginActivity extends Activity {
                 },
                 error -> {
                     Log.e("Volley Error", "API error: " + error.toString());
-                    Toast.makeText(this, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show();
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        Toast.makeText(this, "Credenciales incorrectas", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show();
+                    }
                 });
 
         queue.add(jsonObjectRequest);

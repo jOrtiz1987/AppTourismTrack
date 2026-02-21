@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -121,10 +122,14 @@ public class LocationService extends Service implements LocationListener {
 
     private void sendCoordinatesToServer(double latitude, double longitude) {
 
-        String url = ApiConfig.BASE_URL + "coordenadas/validarCoordenadas/"
+        String url = ApiConfig.BASE_URL + "api/coordenadas/validarCoordenadas/"
                 + userId + "/" + latitude + "/" + longitude;
 
         RequestQueue queue = Volley.newRequestQueue(this);
+
+        // Obtener el token JWT
+        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        String jwtToken = prefs.getString("jwtToken", "");
 
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(
                 Request.Method.GET, url, null,
@@ -147,7 +152,22 @@ public class LocationService extends Service implements LocationListener {
                         Log.e(TAG, "JSON error", e);
                     }
                 },
-                error -> Log.e(TAG, "API error: " + error));
+                error -> {
+                    Log.e(TAG, "API error: " + error);
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        // Sesión expirada -> detener servicio
+                        getSharedPreferences("UserPrefs", MODE_PRIVATE).edit().clear().apply();
+                        getSharedPreferences("VisitPrefs", MODE_PRIVATE).edit().clear().apply();
+                        stopSelf();
+                    }
+                }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization", "Bearer " + jwtToken);
+                return headers;
+            }
+        };
 
         queue.add(jsonObjectRequest);
     }

@@ -15,6 +15,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.airbnb.lottie.LottieAnimationView;
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.VolleyError;
@@ -38,7 +39,9 @@ import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 public class RealidadAumentadaActivity extends AppCompatActivity {
@@ -50,7 +53,6 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
     private String userId;
     private RequestQueue requestQueue;
     private String placeId;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,7 +112,8 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
                 }
 
                 Anchor anchor = hitResult.createAnchor();
-                //Uri modeloUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.parroquiacentro22);
+                // Uri modeloUri = Uri.parse("android.resource://" + getPackageName() + "/" +
+                // R.raw.parroquiacentro22);
                 ModelRenderable.builder()
                         .setSource(this, R.raw.parroquiacentro22)
                         .setIsFilamentGltf(true)
@@ -142,19 +145,24 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
     /**
      * Agrega modelo 3D a la escena
      */
-    /*private void addModelToScene(Anchor anchor, ModelRenderable modelRenderable) {
-        AnchorNode anchorNode = new AnchorNode(anchor);
-        anchorNode.setParent(arFragment.getArSceneView().getScene());
-
-        TransformableNode model = new TransformableNode(arFragment.getTransformationSystem());
-        model.setParent(anchorNode);
-        model.setRenderable(modelRenderable);
-        model.setLocalScale(new Vector3(10.0f, 10.0f, 10.0f));
-        model.select();
-    }*/
+    /*
+     * private void addModelToScene(Anchor anchor, ModelRenderable modelRenderable)
+     * {
+     * AnchorNode anchorNode = new AnchorNode(anchor);
+     * anchorNode.setParent(arFragment.getArSceneView().getScene());
+     * 
+     * TransformableNode model = new
+     * TransformableNode(arFragment.getTransformationSystem());
+     * model.setParent(anchorNode);
+     * model.setRenderable(modelRenderable);
+     * model.setLocalScale(new Vector3(10.0f, 10.0f, 10.0f));
+     * model.select();
+     * }
+     */
 
     /**
-     * Agrega modelo 3D a la escena. Aplica la escala al AnchorNode para garantizar el tamaño.
+     * Agrega modelo 3D a la escena. Aplica la escala al AnchorNode para garantizar
+     * el tamaño.
      */
     private void addModelToScene(Anchor anchor, ModelRenderable modelRenderable) {
         AnchorNode anchorNode = new AnchorNode(anchor);
@@ -177,32 +185,41 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
 
     /**
      * Registra la visita al web service mediante una petición POST.
-     * Utiliza JsonObjectRequest para enviar el userId y el contenido (nombre del lugar).
+     * Utiliza JsonObjectRequest para enviar el userId y el contenido (nombre del
+     * lugar).
      */
     private void registerVisit(String userId, String placeId) {
-        String url = ApiConfig.BASE_URL + "visitas/";
-        /*SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
-        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-        String fechaActual = sdf.format(new Date());*/
+        String url = ApiConfig.BASE_URL + "api/visitas/";
+        /*
+         * SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss",
+         * Locale.US);
+         * sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+         * String fechaActual = sdf.format(new Date());
+         */
 
         Date miFecha = new Date();
         long fechaEpoch = miFecha.getTime();
         String fechaEpochString = String.valueOf(fechaEpoch);
 
-        /*Date miFecha = new Date();
-        String fechaISO = miFecha.toInstant().toString();*/
+        /*
+         * Date miFecha = new Date();
+         * String fechaISO = miFecha.toInstant().toString();
+         */
 
-        //Toast.makeText(this, "Inicio registro visita.", Toast.LENGTH_SHORT).show();
+        // Toast.makeText(this, "Inicio registro visita.", Toast.LENGTH_SHORT).show();
         try {
             JSONObject jsonBody = new JSONObject();
             // El userId y el contenido (nombre del lugar) forman el cuerpo de la Visita
-            //jsonBody.put("idUsuario", 1);
+            // jsonBody.put("idUsuario", 1);
             jsonBody.put("idUsuario", userId);
-            //jsonBody.put("idEdificioHistorico", 2);
+            // jsonBody.put("idEdificioHistorico", 2);
             jsonBody.put("idEdificioHistorico", Integer.parseInt(placeId));
             jsonBody.put("fecha", fechaEpochString);
             jsonBody.put("llevaNinos", false);
             Toast.makeText(this, jsonBody.toString(), Toast.LENGTH_LONG).show();
+
+            // Obtenemos el token guardado
+            String jwtToken = getSharedPreferences("UserPrefs", MODE_PRIVATE).getString("jwtToken", "");
 
             JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, url, jsonBody,
                     response -> {
@@ -212,9 +229,21 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
                         // Mostrar Toast para debug
                         String errorMessage = parseVolleyError(error);
 
-                        Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
-                    }
-            );
+                        if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                            Toast.makeText(this, "Sesión expirada", Toast.LENGTH_SHORT).show();
+                            getSharedPreferences("UserPrefs", MODE_PRIVATE).edit().clear().apply();
+                            finish();
+                        } else {
+                            Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
+                        }
+                    }) {
+                @Override
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<>();
+                    headers.put("Authorization", "Bearer " + jwtToken);
+                    return headers;
+                }
+            };
 
             requestQueue.add(jsonObjectRequest);
 
@@ -224,7 +253,8 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
     }
 
     /**
-     * Extrae el mensaje de error del cuerpo de la respuesta de Volley (usualmente JSON).
+     * Extrae el mensaje de error del cuerpo de la respuesta de Volley (usualmente
+     * JSON).
      */
     private String parseVolleyError(VolleyError error) {
         if (error.networkResponse != null && error.networkResponse.data != null) {

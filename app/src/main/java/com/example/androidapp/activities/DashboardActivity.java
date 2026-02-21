@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
@@ -23,7 +24,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DashboardActivity extends AppCompatActivity {
 
@@ -76,9 +79,14 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void fetchPlaces() {
-        String url = ApiConfig.BASE_URL + "edificios/"; // Assuming endpoint is /edificios/
+        // Ajustando la ruta para incluir /api/ basado en el controlador de auth.
+        String url = ApiConfig.BASE_URL + "api/edificios/";
 
         RequestQueue queue = Volley.newRequestQueue(this);
+
+        // Obtener el token guardado
+        android.content.SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        String jwtToken = prefs.getString("jwtToken", "");
 
         JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(
                 Request.Method.GET,
@@ -112,9 +120,35 @@ public class DashboardActivity extends AppCompatActivity {
                 },
                 error -> {
                     Log.e("Dashboard", "Volley error: " + error.toString());
-                    Toast.makeText(DashboardActivity.this, "Error al cargar lugares: " + error.getMessage(),
-                            Toast.LENGTH_SHORT).show();
-                });
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        Toast.makeText(DashboardActivity.this, "Sesión expirada", Toast.LENGTH_SHORT).show();
+                        // Cerrar sesión
+                        getSharedPreferences("UserPrefs", MODE_PRIVATE).edit().clear().apply();
+                        getSharedPreferences("VisitPrefs", MODE_PRIVATE).edit().clear().apply();
+                        android.content.Intent serviceIntent = new android.content.Intent(getApplicationContext(),
+                                com.example.androidapp.services.LocationService.class);
+                        stopService(serviceIntent);
+                        startActivity(new android.content.Intent(DashboardActivity.this, LoginActivity.class));
+                        finish();
+                    } else {
+                        String body = "";
+                        if (error.networkResponse != null && error.networkResponse.data != null) {
+                            try {
+                                body = new String(error.networkResponse.data, "UTF-8");
+                            } catch (Exception e) {
+                            }
+                        }
+                        Toast.makeText(DashboardActivity.this, "Error: " + body + " " + error.getMessage(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization", "Bearer " + jwtToken);
+                return headers;
+            }
+        };
 
         queue.add(jsonArrayRequest);
     }
