@@ -33,7 +33,7 @@ public class RegisterActivity extends AppCompatActivity {
     private EditText etNombre, etCorreo, etPassword, etGenero, etFechaNacimiento, etCodigoPostal;
     private Button btnRegistrar;
     private RequestQueue requestQueue;
-    private String urlBase = ApiConfig.BASE_URL + "usuarios/";
+    private String urlBase = ApiConfig.BASE_URL + "api/usuarios/";
     // private String urlBase = "http://10.1.37.31:8080/api/usuarios/";
 
     @Override
@@ -130,7 +130,7 @@ public class RegisterActivity extends AppCompatActivity {
                     public void onResponse(JSONObject response) {
                         Toast.makeText(RegisterActivity.this, "Usuario registrado con éxito", Toast.LENGTH_SHORT)
                                 .show();
-                        Intent newIntent = new Intent(getApplicationContext(), LoginActivity.class);
+                        Intent newIntent = new Intent(getApplicationContext(), PeriodoVacacionalActivity.class);
                         RegisterActivity.this.startActivity(newIntent);
                         // startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
                         finish();

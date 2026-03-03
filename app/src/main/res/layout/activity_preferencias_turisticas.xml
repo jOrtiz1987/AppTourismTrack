@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_vertical">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Preferencias Turísticas"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="32dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="¿Qué tipo de lugares te interesan más?"
+        android:textSize="16sp"
+        android:layout_marginBottom="16dp"/>
+
+    <CheckBox
+        android:id="@+id/cbRestaurantes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Restaurantes y Comida local" />
+
+    <CheckBox
+        android:id="@+id/cbAtracciones"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Atracciones Turísticas y Monumentos" />
+
+    <CheckBox
+        android:id="@+id/cbMuseos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Museos y Cultura" />
+
+    <CheckBox
+        android:id="@+id/cbNaturaleza"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Naturaleza y Parques" />
+
+    <CheckBox
+        android:id="@+id/cbVidaNocturna"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Vida Nocturna y Ocio"
+        android:layout_marginBottom="32dp"/>
+
+    <Button
+        android:id="@+id/btnFinalizarPreferencias"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:text="Finalizar Registro" />
+
+</LinearLayout>

@@ -40,8 +40,32 @@
             android:theme="@style/Theme.AndroidApp" />
 
         <activity
-            android:name=".activities.RegisterActivity" />
+            android:name=".activities.LauncherSplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AndroidApp">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
+        <activity
+            android:name=".activities.RegisterActivity"
+            android:exported="false"
+            android:label="@string/app_name">
+        </activity>
+
+        <activity
+            android:name=".activities.PeriodoVacacionalActivity"
+            android:exported="false"
+            android:label="Periodo Vacacional"
+            android:theme="@style/Theme.AndroidApp" />
+
+        <activity
+            android:name=".activities.PreferenciasTuristicasActivity"
+            android:exported="false"
+            android:label="Preferencias"
+            android:theme="@style/Theme.AndroidApp" />
         <service
             android:name=".services.LocationService"
             android:enabled="true"
@@ -50,13 +74,8 @@
 
         <activity
             android:name=".activities.LoginActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="@string/app_name">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
         <activity
             android:name=".activities.DashboardActivity"

@@ -52,8 +52,11 @@ public class DashboardActivity extends AppCompatActivity {
         // Setup Logout Button
         android.widget.ImageButton btnLogout = findViewById(R.id.btnLogout);
         btnLogout.setOnClickListener(v -> {
-            // 1. Clear Preferences
-            getSharedPreferences("UserPrefs", MODE_PRIVATE).edit().clear().apply();
+            // 1. Clear Preferences (Preserving onboarding flag)
+            android.content.SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+            boolean hasCompletedOnboarding = prefs.getBoolean("hasCompletedOnboarding", false);
+            prefs.edit().clear().putBoolean("hasCompletedOnboarding", hasCompletedOnboarding).apply();
+
             getSharedPreferences("VisitPrefs", MODE_PRIVATE).edit().clear().apply();
 
             // 2. Stop Service
@@ -122,8 +125,10 @@ public class DashboardActivity extends AppCompatActivity {
                     Log.e("Dashboard", "Volley error: " + error.toString());
                     if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
                         Toast.makeText(DashboardActivity.this, "Sesión expirada", Toast.LENGTH_SHORT).show();
-                        // Cerrar sesión
-                        getSharedPreferences("UserPrefs", MODE_PRIVATE).edit().clear().apply();
+                        // Cerrar sesión preservando la bandera de onboarding
+                        boolean hasCompletedOnboarding = prefs.getBoolean("hasCompletedOnboarding", false);
+                        prefs.edit().clear().putBoolean("hasCompletedOnboarding", hasCompletedOnboarding).apply();
+
                         getSharedPreferences("VisitPrefs", MODE_PRIVATE).edit().clear().apply();
                         android.content.Intent serviceIntent = new android.content.Intent(getApplicationContext(),
                                 com.example.androidapp.services.LocationService.class);
