@@ -104,18 +104,85 @@ public class PreferenciasTuristicasActivity extends AppCompatActivity {
             return;
         }
 
-        // TODO: Enviar preferencias al servidor si es necesario (ej. POST
-        // /api/usuarios/{id}/preferencias)
-
-        Toast.makeText(this, "Preferencias guardadas con éxito", Toast.LENGTH_SHORT).show();
-
-        // Guardamos que el usuario ya completó el registro inicial completo
         android.content.SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-        prefs.edit().putBoolean("hasCompletedOnboarding", true).apply();
+        int idPeriodoVacacional = prefs.getInt("idPeriodoVacacional", -1);
 
-        // Redirigir al Login para que el usuario inicie sesión con su nueva cuenta
-        Intent intent = new Intent(this, LoginActivity.class);
-        startActivity(intent);
-        finish();
+        if (idPeriodoVacacional == -1) {
+            Toast.makeText(this, "Error: No se encontró el periodo vacacional", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String url = ApiConfig.BASE_URL + "api/lugares-usuario";
+
+        final int totalRequests = seleccionadas.size();
+        final int[] completedRequests = { 0 };
+        final boolean[] hasError = { false };
+
+        progressBar.setVisibility(View.VISIBLE);
+        btnFinalizar.setEnabled(false);
+
+        for (Categoria categoria : seleccionadas) {
+            JSONObject jsonBody = new JSONObject();
+            try {
+                JSONObject catObj = new JSONObject();
+                catObj.put("id", categoria.getId());
+                jsonBody.put("categoria", catObj);
+
+                JSONObject periodoObj = new JSONObject();
+                periodoObj.put("idPeriodoVacacional", idPeriodoVacacional);
+                jsonBody.put("idPeriodoVacacional", periodoObj);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                completedRequests[0]++;
+                checkAllRequestsCompleted(completedRequests[0], totalRequests, hasError[0]);
+                continue;
+            }
+
+            com.android.volley.toolbox.JsonObjectRequest request = new com.android.volley.toolbox.JsonObjectRequest(
+                    Request.Method.POST, url, jsonBody,
+                    response -> {
+                        completedRequests[0]++;
+                        checkAllRequestsCompleted(completedRequests[0], totalRequests, hasError[0]);
+                    },
+                    error -> {
+                        error.printStackTrace();
+                        hasError[0] = true;
+                        completedRequests[0]++;
+                        checkAllRequestsCompleted(completedRequests[0], totalRequests, hasError[0]);
+                    }) {
+                @Override
+                public java.util.Map<String, String> getHeaders() throws com.android.volley.AuthFailureError {
+                    java.util.Map<String, String> headers = new java.util.HashMap<>();
+                    String token = prefs.getString("jwtToken", "");
+                    if (!token.isEmpty()) {
+                        headers.put("Authorization", "Bearer " + token);
+                    }
+                    headers.put("Content-Type", "application/json");
+                    return headers;
+                }
+            };
+            requestQueue.add(request);
+        }
+    }
+
+    private void checkAllRequestsCompleted(int completed, int total, boolean hasError) {
+        if (completed == total) {
+            progressBar.setVisibility(View.GONE);
+            btnFinalizar.setEnabled(true);
+
+            if (hasError) {
+                Toast.makeText(this, "Algunas preferencias no se guardaron correctamente, pero puedes continuar.",
+                        Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "Preferencias guardadas con éxito", Toast.LENGTH_SHORT).show();
+            }
+
+            android.content.SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+            prefs.edit().putBoolean("hasCompletedOnboarding", true).apply();
+
+            Intent intent = new Intent(this, LoginActivity.class);
+            startActivity(intent);
+            finish();
+        }
     }
 }

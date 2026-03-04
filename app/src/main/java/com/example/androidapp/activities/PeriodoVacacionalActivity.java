@@ -98,6 +98,17 @@ public class PeriodoVacacionalActivity extends AppCompatActivity {
         com.android.volley.toolbox.JsonObjectRequest request = new com.android.volley.toolbox.JsonObjectRequest(
                 com.android.volley.Request.Method.POST, url, jsonBody,
                 response -> {
+                    try {
+                        if (response.has("idPeriodoVacacional")) {
+                            int idPeriodoVacacional = response.getInt("idPeriodoVacacional");
+                            android.content.SharedPreferences prefs = getSharedPreferences("UserPrefs",
+                                    Context.MODE_PRIVATE);
+                            prefs.edit().putInt("idPeriodoVacacional", idPeriodoVacacional).apply();
+                        }
+                    } catch (org.json.JSONException e) {
+                        e.printStackTrace();
+                    }
+
                     Toast.makeText(PeriodoVacacionalActivity.this, "Datos guardados correctamente", Toast.LENGTH_SHORT)
                             .show();
                     // Continuar a la siguiente pantalla
