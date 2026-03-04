@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MyApp</string>
+    <string name="app_name">Turismo Zacatecas</string>
     <string name="proximity_label">Proximity: %1$d</string>
     <string name="notification_title">Notificacion de proximidad</string>
     <string name="notification_message">Abrir imagen de </string>

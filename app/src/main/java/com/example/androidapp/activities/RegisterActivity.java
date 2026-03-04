@@ -128,12 +128,11 @@ public class RegisterActivity extends AppCompatActivity {
                 new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
-                        Toast.makeText(RegisterActivity.this, "Usuario registrado con éxito", Toast.LENGTH_SHORT)
+                        Toast.makeText(RegisterActivity.this, "Usuario registrado con éxito. Iniciando sesión...",
+                                Toast.LENGTH_SHORT)
                                 .show();
-                        Intent newIntent = new Intent(getApplicationContext(), PeriodoVacacionalActivity.class);
-                        RegisterActivity.this.startActivity(newIntent);
-                        // startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
-                        finish();
+                        // Perform login to get the userId and token
+                        callLoginApi(correo, password);
                     }
                 },
                 new Response.ErrorListener() {
@@ -147,6 +146,51 @@ public class RegisterActivity extends AppCompatActivity {
                 });
 
         requestQueue.add(request);
+    }
+
+    private void callLoginApi(String username, String password) {
+        String url = ApiConfig.BASE_URL + "api/auth/login";
+
+        JSONObject bodyParams = new JSONObject();
+        try {
+            bodyParams.put("correo", username);
+            bodyParams.put("password", password);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(
+                Request.Method.POST,
+                url,
+                bodyParams,
+                response -> {
+                    try {
+                        String jwtToken = response.getString("jwt");
+                        int idUsuario = response.optInt("idUsuario", -1);
+
+                        // Save the user and the new JWT token
+                        android.content.SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+                        prefs.edit()
+                                .putString("userId", String.valueOf(idUsuario))
+                                .putString("jwtToken", jwtToken)
+                                .apply();
+
+                        // Proceed to the next screen
+                        Intent newIntent = new Intent(getApplicationContext(), PeriodoVacacionalActivity.class);
+                        RegisterActivity.this.startActivity(newIntent);
+                        finish();
+
+                    } catch (JSONException e) {
+                        Log.e("Volley", "Invalid JSON", e);
+                        Toast.makeText(this, "Error: respuesta inválida del servidor", Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    Log.e("Volley Error", "API error: " + error.toString());
+                    Toast.makeText(this, "Error al iniciar sesión tras el registro", Toast.LENGTH_SHORT).show();
+                });
+
+        requestQueue.add(jsonObjectRequest);
     }
 
     private boolean isEmailValid(String email) {

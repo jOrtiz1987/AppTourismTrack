@@ -22,36 +22,19 @@
         android:textSize="16sp"
         android:layout_marginBottom="16dp"/>
 
-    <CheckBox
-        android:id="@+id/cbRestaurantes"
-        android:layout_width="match_parent"
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Restaurantes y Comida local" />
+        android:layout_gravity="center"
+        android:visibility="gone" />
 
-    <CheckBox
-        android:id="@+id/cbAtracciones"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvCategorias"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Atracciones Turísticas y Monumentos" />
-
-    <CheckBox
-        android:id="@+id/cbMuseos"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Museos y Cultura" />
-
-    <CheckBox
-        android:id="@+id/cbNaturaleza"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Naturaleza y Parques" />
-
-    <CheckBox
-        android:id="@+id/cbVidaNocturna"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Vida Nocturna y Ocio"
-        android:layout_marginBottom="32dp"/>
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginBottom="16dp" />
 
     <Button
         android:id="@+id/btnFinalizarPreferencias"
