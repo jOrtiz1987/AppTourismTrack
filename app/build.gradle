@@ -21,12 +21,22 @@ android {
         }
     }
 
+    // Los datos de la llave de firma se leen de keystore.properties (raíz del proyecto, fuera de git).
+    // Claves esperadas: storeFile, storePassword, keyAlias, keyPassword
+    def keystorePropsFile = rootProject.file("keystore.properties")
+    def keystoreProps = new Properties()
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.withReader('UTF-8') { keystoreProps.load(it) }
+    }
+
     signingConfigs {
         release {
-            storeFile file("C:/Users/icjor/Dropbox/Estudios/Doctorado en Ingeniería y Tecnología Aplicada/Aplicaciones/my-release-key.jks")
-            storePassword "admin0213"
-            keyAlias "miappkey"
-            keyPassword "admin0213"
+            if (keystoreProps['storeFile']) {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
         }
     }
 

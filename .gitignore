@@ -17,3 +17,8 @@ local.properties
 *.aab
 app/release/
 app/build/
+
+# Datos de la llave de firma (no subir)
+keystore.properties
+*.jks
+*.keystore
