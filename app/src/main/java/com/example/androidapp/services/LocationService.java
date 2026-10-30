@@ -20,6 +20,7 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
 import com.android.volley.AuthFailureError;
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -41,6 +42,7 @@ public class LocationService extends Service implements LocationListener {
     private static final int NOTIFICATION_ID = 101;
 
     private LocationManager locationManager;
+    private RequestQueue requestQueue;
     private String userId;
     private String lugarActual;
 
@@ -125,8 +127,6 @@ public class LocationService extends Service implements LocationListener {
         String url = ApiConfig.BASE_URL + "api/coordenadas/validarCoordenadas/"
                 + userId + "/" + latitude + "/" + longitude;
 
-        RequestQueue queue = Volley.newRequestQueue(this);
-
         // Obtener el token JWT
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
         String jwtToken = prefs.getString("jwtToken", "");
@@ -137,15 +137,17 @@ public class LocationService extends Service implements LocationListener {
                     try {
                         if (response != null && response.length() > 0) {
 
+                            String nombreOriginal = response.getString("descripcion").trim();
                             // NORMALIZAMOS LA LLAVE
-                            String nombreLugar = response.getString("descripcion")
-                                    .trim().toLowerCase();
+                            String nombreLugar = nombreOriginal.toLowerCase();
 
                             String idLugar = response.getString("id");
 
                             if (!hasNotificationBeenSentRecently(nombreLugar)) {
-                                sendNotification(nombreLugar, idLugar);
+                                sendNotification(nombreOriginal, idLugar);
                                 guardarNotificacion(nombreLugar);
+                                // Después de avisar, pide el siguiente lugar sugerido y actualiza la notificación
+                                pedirSiguienteLugar(nombreOriginal, idLugar, jwtToken);
                             }
                         }
                     } catch (Exception e) {
@@ -169,7 +171,49 @@ public class LocationService extends Service implements LocationListener {
             }
         };
 
-        queue.add(jsonObjectRequest);
+        getQueue().add(jsonObjectRequest);
+    }
+
+    /** Una sola cola de peticiones para todo el servicio (antes se creaba una por cada ubicación). */
+    private RequestQueue getQueue() {
+        if (requestQueue == null) {
+            requestQueue = Volley.newRequestQueue(getApplicationContext());
+        }
+        return requestQueue;
+    }
+
+    /**
+     * Pide al backend el siguiente lugar sugerido (red neuronal de data-info) y, si hay uno,
+     * manda una segunda notificación invitando a visitarlo. Si no hay sugerencia o falla,
+     * solo queda la notificación de proximidad.
+     */
+    private void pedirSiguienteLugar(String lugarActual, String idLugarActual, String jwtToken) {
+        String url = ApiConfig.BASE_URL + "api/recomendaciones/siguiente/" + idLugarActual;
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+                response -> {
+                    try {
+                        if (response != null && response.has("id")) {
+                            mostrarSugerencia(lugarActual,
+                                    response.getString("descripcion"),
+                                    response.optString("contenido", ""));
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Sugerencia con formato inesperado", e);
+                    }
+                },
+                // 204 (sin sugerencia) o error: no se manda la segunda notificación
+                error -> Log.d(TAG, "Sin sugerencia de siguiente lugar: " + error)) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization", "Bearer " + jwtToken);
+                return headers;
+            }
+        };
+        // La primera predicción puede tardar si el modelo se está entrenando
+        request.setRetryPolicy(new DefaultRetryPolicy(20000, 0, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        getQueue().add(request);
     }
 
     private boolean hasNotificationBeenSentRecently(String lugar) {
@@ -228,7 +272,36 @@ public class LocationService extends Service implements LocationListener {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
-        manager.notify(lugar.hashCode(), builder.build());
+        manager.notify(lugar.toLowerCase().hashCode(), builder.build());
+    }
+
+    /**
+     * Segunda notificación: solo sugiere el siguiente lugar a visitar
+     * (no abre la realidad aumentada ni otra pantalla).
+     */
+    private void mostrarSugerencia(String lugarActual, String sugerido, String contenido) {
+        String channelId = "sugerencias_channel";
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(channelId, "Sugerencias de lugares",
+                    NotificationManager.IMPORTANCE_DEFAULT);
+            manager.createNotificationChannel(channel);
+        }
+
+        String texto = "Después de " + lugarActual + ", te sugerimos visitar " + sugerido + ".";
+        if (contenido != null && !contenido.isEmpty() && !"null".equals(contenido)) {
+            texto += "\n" + contenido;
+        }
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
+                .setContentTitle("Te sugerimos visitar: " + sugerido)
+                .setContentText("Después de " + lugarActual)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(texto))
+                .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+                .setAutoCancel(true);
+
+        manager.notify(("sugerencia" + lugarActual.toLowerCase()).hashCode(), builder.build());
     }
 
     @Override
