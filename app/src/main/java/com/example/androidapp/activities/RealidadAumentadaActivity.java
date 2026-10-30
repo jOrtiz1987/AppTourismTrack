@@ -33,6 +33,10 @@ import com.google.ar.sceneform.rendering.ModelRenderable;
 import com.google.ar.sceneform.ux.ArFragment;
 import com.google.ar.sceneform.ux.TransformableNode;
 import com.example.androidapp.config.ApiConfig;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.ImageView;
+import com.bumptech.glide.Glide;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -54,6 +58,11 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
     private RequestQueue requestQueue;
     private String placeId;
 
+    private ScrollView noArDetailsView;
+    private ImageView ivEdificioNoAr;
+    private TextView tvNombreNoAr;
+    private TextView tvContenidoNoAr;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -66,6 +75,10 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
 
         arContainer = findViewById(R.id.ar_container);
         animationView = findViewById(R.id.animation_view);
+        noArDetailsView = findViewById(R.id.no_ar_details_view);
+        ivEdificioNoAr = findViewById(R.id.iv_edificio_no_ar);
+        tvNombreNoAr = findViewById(R.id.tv_nombre_no_ar);
+        tvContenidoNoAr = findViewById(R.id.tv_contenido_no_ar);
 
         requestQueue = Volley.newRequestQueue(this);
         // Puedes obtener el userId de SharedPreferences si lo guardas tras el login
@@ -77,6 +90,62 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
     }
 
     /**
+     * Modelo 3D de realidad aumentada de un lugar de interés: recurso raw y escala.
+     * La escala deja cada maqueta de aproximadamente 1.6 a 2 m sobre el plano detectado
+     * (los modelos están en metros reales).
+     */
+    private static final class ModeloRA {
+        final int recurso;
+        final float escala;
+
+        ModeloRA(int recurso, float escala) {
+            this.recurso = recurso;
+            this.escala = escala;
+        }
+    }
+
+    /**
+     * Relaciona cada idLugarInteres (tabla lugarinteres) con su modelo 3D.
+     * Retorna null si el lugar no tiene modelo (p. ej. 16 = "Casa").
+     */
+    private ModeloRA getModeloRA(String placeId) {
+        if (placeId == null) return null;
+        switch (placeId) {
+            case "1":  return new ModeloRA(R.raw.catedral_basilica_de_zacatecas, 0.02f);        // Catedral Basílica (~80 m)
+            case "2":  return new ModeloRA(R.raw.mina_el_eden_zacatecas, 0.06f);                // Mina El Edén (~29 m)
+            case "3":  return new ModeloRA(R.raw.cerro_de_la_bufa_zacatecas, 0.022f);           // Cerro de la Bufa (~80 m)
+            case "4":  return new ModeloRA(R.raw.teatro_calderon_zacatecas, 0.06f);             // Teatro Calderón (~29 m)
+            case "5":  return new ModeloRA(R.raw.museo_rafael_coronel_zacatecas, 0.025f);       // Museo Rafael Coronel (~70 m)
+            case "6":  return new ModeloRA(R.raw.museo_pedro_coronel_zacatecas, 0.018f);        // Museo Pedro Coronel (~95 m)
+            case "7":  return new ModeloRA(R.raw.plazuela_miguel_auza_zacatecas, 0.025f);       // Plazuela Miguel Auza (~66 m)
+            case "8":  return new ModeloRA(R.raw.alameda_garcia_de_la_cadena_zacatecas, 0.016f); // Alameda García de la Cadena (~110 m)
+            case "9":  return new ModeloRA(R.raw.acueducto_el_cubo_zacatecas, 0.011f);          // Acueducto El Cubo (~160 m)
+            case "10": return new ModeloRA(R.raw.mercado_gonzalez_ortega_zacatecas, 0.02f);     // Mercado González Ortega (~84 m)
+            case "11": return new ModeloRA(R.raw.portal_de_rosales_zacatecas, 0.018f);          // Portal de Rosales (~96 m)
+            case "12": return new ModeloRA(R.raw.jardin_juarez_zacatecas, 0.025f);              // Jardín Juárez (~68 m)
+            case "13": return new ModeloRA(R.raw.plaza_de_armas_zacatecas, 0.02f);              // Plaza de Armas (~80 m)
+            case "14": return new ModeloRA(R.raw.museo_zacatecano_zacatecas, 0.032f);           // Museo Zacatecano (~52 m)
+            case "15": return new ModeloRA(R.raw.ex_templo_san_agustin_zacatecas, 0.025f);      // Ex Templo de San Agustín (~70 m)
+            case "17": return new ModeloRA(R.raw.parroquia_de_fatima, 0.1f);                    // Templo de Fátima (~18 m)
+            case "18": return new ModeloRA(R.raw.museo_manuel_felguerez_zacatecas, 0.024f);     // Museo Manuel Felguérez (~72 m)
+            case "19": return new ModeloRA(R.raw.plaza_bicentenario_zacatecas, 0.02f);          // Plaza Bicentenario (~80 m)
+            case "20": return new ModeloRA(R.raw.museo_francisco_goitia_zacatecas, 0.024f);     // Museo Francisco Goitia (~72 m)
+            case "21": return new ModeloRA(R.raw.obelisco_plaza_de_armas_zacatecas, 0.07f);     // Obelisco Plaza de Armas (~24 m)
+            case "22": return new ModeloRA(R.raw.santuario_de_guadalupe_zacatecas, 0.02f);      // Santuario de Guadalupe (~88 m)
+            default:   return null;
+        }
+    }
+
+    /**
+     * Retorna el ID del recurso raw para el modelo 3D correspondiente al edificio.
+     * Si no hay un modelo 3D definido para el edificio, retorna 0.
+     */
+    private int getModelRawResource(String placeId) {
+        ModeloRA modelo = getModeloRA(placeId);
+        return modelo != null ? modelo.recurso : 0;
+    }
+
+    /**
      * Verifica compatibilidad con ARCore sin mostrar diálogos de instalación
      */
     private void verificarCompatibilidadAR() {
@@ -85,19 +154,24 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
         // Solo activa AR si ya está instalado y listo para usar
         arSoportado = (disponibilidad == ArCoreApk.Availability.SUPPORTED_INSTALLED);
 
-        registerVisit(userId, placeId);
+        boolean fromNotification = getIntent().getBooleanExtra("fromNotification", false);
+        if (fromNotification) {
+            registerVisit(userId, placeId);
+        }
 
-        if (arSoportado) {
-            iniciarArFragment();
+        int modelResId = getModelRawResource(placeId);
+
+        if (modelResId != 0 && arSoportado) {
+            iniciarArFragment(modelResId);
         } else {
-            mostrarAnimacionAlternativa();
+            mostrarDetallesEdificio();
         }
     }
 
     /**
-     * Carga ArFragment dinámicamente
+     * Carga ArFragment dinámicamente y configura el listener para instanciar el modelo AR
      */
-    private void iniciarArFragment() {
+    private void iniciarArFragment(int modelResId) {
         try {
             FragmentManager fragmentManager = getSupportFragmentManager();
             FragmentTransaction transaction = fragmentManager.beginTransaction();
@@ -112,10 +186,8 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
                 }
 
                 Anchor anchor = hitResult.createAnchor();
-                // Uri modeloUri = Uri.parse("android.resource://" + getPackageName() + "/" +
-                // R.raw.parroquiacentro22);
                 ModelRenderable.builder()
-                        .setSource(this, R.raw.parroquiacentro22)
+                        .setSource(this, modelResId)
                         .setIsFilamentGltf(true)
                         .build()
                         .thenAccept(modelRenderable -> addModelToScene(anchor, modelRenderable))
@@ -126,19 +198,101 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
             });
         } catch (Exception e) {
             Log.e("ARError", "Error al iniciar AR", e);
-            mostrarAnimacionAlternativa();
+            mostrarDetallesEdificio();
         }
     }
 
     /**
-     * Muestra animación alternativa cuando AR no está disponible
+     * Muestra la vista alternativa con los detalles de imagen y descripción del edificio
+     */
+    private void mostrarDetallesEdificio() {
+        arContainer.setVisibility(View.GONE);
+        animationView.setVisibility(View.GONE);
+        noArDetailsView.setVisibility(View.VISIBLE);
+
+        loadPlaceDetails(placeId);
+    }
+
+    /**
+     * Carga los detalles del edificio desde el servidor web de Spring Boot
+     */
+    private void loadPlaceDetails(String placeId) {
+        String url = ApiConfig.BASE_URL + "api/edificios/" + placeId;
+        String jwtToken = getSharedPreferences("UserPrefs", MODE_PRIVATE).getString("jwtToken", "");
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+                response -> {
+                    try {
+                        String descripcion = response.optString("descripcion", "Edificio Histórico");
+                        String contenido = response.optString("contenido", "No hay contenido disponible.");
+                        String referenciaImagen = response.optString("referenciaImagen", "");
+
+                        tvNombreNoAr.setText(descripcion);
+                        tvContenidoNoAr.setText(contenido);
+
+                        if (!referenciaImagen.isEmpty()) {
+                              String imageUrl = referenciaImagen;
+                              if (!imageUrl.startsWith("http")) {
+                                  imageUrl = ApiConfig.BASE_URL.replace("api/", "") + imageUrl;
+                              } else {
+                                  imageUrl = getWikimediaThumbnail(imageUrl);
+                              }
+
+                              com.bumptech.glide.load.model.GlideUrl glideUrl;
+                              try {
+                                  // Pasando un objeto URL evitamos que Glide decodifique e intente codificar de nuevo caracteres ya válidos como %2C y %C3
+                                  glideUrl = new com.bumptech.glide.load.model.GlideUrl(new java.net.URL(imageUrl), 
+                                      new com.bumptech.glide.load.model.LazyHeaders.Builder()
+                                          .addHeader("User-Agent", "TourismTrackingApp/1.0 (icjorge@uaz.edu.mx; Mobile App for Historic Tourism)")
+                                          .build());
+                              } catch (java.net.MalformedURLException e) {
+                                  glideUrl = new com.bumptech.glide.load.model.GlideUrl(imageUrl, 
+                                      new com.bumptech.glide.load.model.LazyHeaders.Builder()
+                                          .addHeader("User-Agent", "TourismTrackingApp/1.0 (icjorge@uaz.edu.mx; Mobile App for Historic Tourism)")
+                                          .build());
+                              }
+                              Glide.with(this)
+                                      .load(glideUrl)
+                                      .placeholder(android.R.drawable.ic_menu_gallery)
+                                      .error(android.R.drawable.ic_menu_report_image)
+                                      .into(ivEdificioNoAr);
+                          }
+                    } catch (Exception e) {
+                        Log.e("ARDetails", "Error parsing place details", e);
+                    }
+                },
+                error -> {
+                    Log.e("ARDetails", "Error fetching place details: " + error);
+                    Toast.makeText(this, "Error al cargar detalles del edificio", Toast.LENGTH_SHORT).show();
+                }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization", "Bearer " + jwtToken);
+                return headers;
+            }
+        };
+        requestQueue.add(request);
+    }
+
+    private String getWikimediaThumbnail(String url) {
+        if (url != null && url.startsWith("https://upload.wikimedia.org/wikipedia/commons/")) {
+            if (!url.contains("/thumb/")) {
+                String filename = url.substring(url.lastIndexOf("/") + 1);
+                String rest = url.substring("https://upload.wikimedia.org/wikipedia/commons/".length());
+                return "https://upload.wikimedia.org/wikipedia/commons/thumb/" + rest + "/500px-" + filename;
+            }
+        }
+        return url;
+    }
+
+    /**
+     * Muestra animación alternativa cuando AR no está disponible (mantenido por compatibilidad)
      */
     private void mostrarAnimacionAlternativa() {
         arContainer.setVisibility(View.GONE);
         animationView.setVisibility(View.VISIBLE);
         animationView.playAnimation();
-
-        // Opcional: Personaliza el mensaje para no mencionar instalación
         Toast.makeText(this, "Realidad aumentada no disponible", Toast.LENGTH_SHORT).show();
     }
 
@@ -168,17 +322,15 @@ public class RealidadAumentadaActivity extends AppCompatActivity {
         AnchorNode anchorNode = new AnchorNode(anchor);
         anchorNode.setParent(arFragment.getArSceneView().getScene());
 
-        // MODIFICACIÓN CRÍTICA: Aplicar escala masiva al AnchorNode (padre)
-        // Esto compensa si el modelo .glb fue exportado con unidades minúsculas.
-        anchorNode.setLocalScale(new Vector3(9.0f, 9.0f, 9.0f));
+        // Escala según el lugar (ver getModeloRA) para verlo como maqueta.
+        ModeloRA modelo = getModeloRA(placeId);
+        float scaleFactor = modelo != null ? modelo.escala : 1.0f;
+
+        anchorNode.setLocalScale(new Vector3(scaleFactor, scaleFactor, scaleFactor));
 
         TransformableNode model = new TransformableNode(arFragment.getTransformationSystem());
         model.setParent(anchorNode);
         model.setRenderable(modelRenderable);
-
-        // Dejamos la escala en 1.0f para que herede la escala masiva del padre.
-        // Si se define aquí, podría sobrescribir la del padre.
-        // model.setLocalScale(new Vector3(1.0f, 1.0f, 1.0f));
 
         model.select();
     }

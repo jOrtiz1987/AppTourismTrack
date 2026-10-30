@@ -2,5 +2,5 @@ package com.example.androidapp.config;
 
 public class ApiConfig {
     public static final String BASE_URL =  "https://liaaproyectos.uaz.edu.mx/apituristica/";
-    // public static final String BASE_URL = "http://192.168.1.9:8080/";
+    // public static final String BASE_URL = "http://192.168.1.10:8080/";
 }

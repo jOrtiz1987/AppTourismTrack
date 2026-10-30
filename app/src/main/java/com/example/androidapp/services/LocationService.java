@@ -215,6 +215,7 @@ public class LocationService extends Service implements LocationListener {
         }
 
         Intent intent = new Intent(this, RealidadAumentadaActivity.class);
+        intent.putExtra("fromNotification", true);
 
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this, 0, intent,

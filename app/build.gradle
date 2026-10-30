@@ -1,11 +1,12 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 android {
     namespace 'com.example.androidapp'
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.example.androidapp"
@@ -45,9 +46,6 @@ android {
     buildFeatures {
         compose true
         viewBinding true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.4.6'
     }
     packagingOptions {
         resources {

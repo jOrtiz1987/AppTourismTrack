@@ -14,6 +14,9 @@ import com.bumptech.glide.Glide;
 import com.example.androidapp.R;
 import com.example.androidapp.config.ApiConfig;
 import com.example.androidapp.models.EdificioHistorico;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import com.example.androidapp.activities.RealidadAumentadaActivity;
 
 import java.util.List;
 
@@ -41,28 +44,56 @@ public class PlacesAdapter extends RecyclerView.Adapter<PlacesAdapter.PlaceViewH
         holder.tvNombre.setText(place.getDescripcion());
         holder.tvDescripcion.setText(place.getContenido());
 
-        // Construct full image URL if reference is relative, or use as is if absolute
-        // Assuming relative path for now based on typical setups, but can be adjusted
-        // If referenciaImagen is just "image.jpg", we might need a base content URL.
-        // For now, let's try to usage the ApiConfig.BASE_URL without "api/" if images
-        // are static
-        // Or just load what is in the string if it's a full URL.
+        // Manejar click para abrir RealidadAumentadaActivity (con fallback si no tiene modelo)
+        holder.itemView.setOnClickListener(v -> {
+            SharedPreferences prefs = context.getSharedPreferences("VisitPrefs", Context.MODE_PRIVATE);
+            prefs.edit().putString("currentEdificioId", String.valueOf(place.getIdEdificioHistorico())).apply();
+            
+            Intent intent = new Intent(context, RealidadAumentadaActivity.class);
+            intent.putExtra("fromNotification", false);
+            context.startActivity(intent);
+        });
 
         // Debugging strategy: Load placeholder if null.
         if (place.getReferenciaImagen() != null && !place.getReferenciaImagen().isEmpty()) {
-            // START of image url logic - adjusting to potential local server logic
-            // Common pattern: If it starts with http, use it. Else append to base.
             String imageUrl = place.getReferenciaImagen();
             if (!imageUrl.startsWith("http")) {
                 imageUrl = ApiConfig.BASE_URL.replace("api/", "") + imageUrl;
+            } else {
+                imageUrl = getWikimediaThumbnail(imageUrl);
+            }
+
+            com.bumptech.glide.load.model.GlideUrl glideUrl;
+            try {
+                // Pasando un objeto URL evitamos que Glide decodifique e intente codificar de nuevo caracteres ya válidos como %2C y %C3
+                glideUrl = new com.bumptech.glide.load.model.GlideUrl(new java.net.URL(imageUrl), 
+                    new com.bumptech.glide.load.model.LazyHeaders.Builder()
+                        .addHeader("User-Agent", "TourismTrackingApp/1.0 (icjorge@uaz.edu.mx; Mobile App for Historic Tourism)")
+                        .build());
+            } catch (java.net.MalformedURLException e) {
+                glideUrl = new com.bumptech.glide.load.model.GlideUrl(imageUrl, 
+                    new com.bumptech.glide.load.model.LazyHeaders.Builder()
+                        .addHeader("User-Agent", "TourismTrackingApp/1.0 (icjorge@uaz.edu.mx; Mobile App for Historic Tourism)")
+                        .build());
             }
 
             Glide.with(context)
-                    .load(imageUrl)
+                    .load(glideUrl)
                     .placeholder(android.R.drawable.ic_menu_gallery)
                     .error(android.R.drawable.ic_menu_report_image)
                     .into(holder.ivLugar);
         }
+    }
+
+    private String getWikimediaThumbnail(String url) {
+        if (url != null && url.startsWith("https://upload.wikimedia.org/wikipedia/commons/")) {
+            if (!url.contains("/thumb/")) {
+                String filename = url.substring(url.lastIndexOf("/") + 1);
+                String rest = url.substring("https://upload.wikimedia.org/wikipedia/commons/".length());
+                return "https://upload.wikimedia.org/wikipedia/commons/thumb/" + rest + "/500px-" + filename;
+            }
+        }
+        return url;
     }
 
     @Override

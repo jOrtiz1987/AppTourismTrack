@@ -20,13 +20,118 @@
         android:visibility="gone"
         android:layout_centerInParent="true"/>
 
+    <!-- Vista alternativa para edificios sin AR (Rediseñada para lucir Premium) -->
+    <ScrollView
+        android:id="@+id/no_ar_details_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F8FAFC"
+        android:visibility="gone">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Imagen del edificio -->
+            <ImageView
+                android:id="@+id/iv_edificio_no_ar"
+                android:layout_width="match_parent"
+                android:layout_height="320dp"
+                android:scaleType="centerCrop"
+                android:src="@android:drawable/ic_menu_gallery" />
+
+            <!-- Degradado sobre la imagen para mejorar contraste -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:layout_alignBottom="@id/iv_edificio_no_ar"
+                android:background="@drawable/bg_gradient" />
+
+            <!-- Contenedor de contenido superpuesto -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/iv_edificio_no_ar"
+                android:layout_marginTop="-40dp"
+                android:layout_marginLeft="16dp"
+                android:layout_marginRight="16dp"
+                android:layout_marginBottom="24dp"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="8dp"
+                app:cardBackgroundColor="#FFFFFF">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <!-- Categoría del Edificio (Badge) -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="MONUMENTO HISTÓRICO"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="#2563EB"
+                        android:background="@android:drawable/btn_default"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="4dp"
+                        android:layout_marginBottom="12dp" />
+
+                    <!-- Nombre del Edificio -->
+                    <TextView
+                        android:id="@+id/tv_nombre_no_ar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Nombre del Edificio"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:textColor="#1E293B"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- Línea de división fina -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#E2E8F0"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- Subtítulo de Información -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Reseña Histórica"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="#64748B"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Contenido descriptivo -->
+                    <TextView
+                        android:id="@+id/tv_contenido_no_ar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Cargando descripción histórica..."
+                        android:textSize="15sp"
+                        android:textColor="#334155"
+                        android:lineSpacingExtra="6dp" />
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+        </RelativeLayout>
+    </ScrollView>
+
+    <!-- Botón flotante para cerrar (Estilo Redondo Moderno) -->
     <ImageButton
         android:id="@+id/btn_cerrar_ra"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_alignParentTop="true"
         android:layout_alignParentEnd="true"
+        android:layout_margin="16dp"
         android:src="@android:drawable/ic_menu_close_clear_cancel"
+        android:background="@android:drawable/btn_default"
         android:contentDescription="Cerrar Realidad Aumentada" />
 
 </RelativeLayout>
